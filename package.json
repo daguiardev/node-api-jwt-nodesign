@@ -1,0 +1,31 @@
+{
+  "name": "api-jwt-nodesign",
+  "version": "1.0.0",
+  "description": "Projeto didático de desenvolvimento de uma **API REST para gerenciamento de usuários**, utilizando Node.js, TypeScript, Express, SQLite e autenticação com JSON Web Token (JWT).",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daguiardev/node-api-jwt-nodesign.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/daguiardev/node-api-jwt-nodesign/issues"
+  },
+  "homepage": "https://github.com/daguiardev/node-api-jwt-nodesign#readme",
+  "dependencies": {
+    "express": "^5.3.0",
+    "typescript": "^7.0.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
