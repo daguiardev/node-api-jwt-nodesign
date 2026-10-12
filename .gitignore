@@ -9,3 +9,7 @@ dist/
 
 # Arquivos temporários de log.
 *.log
+
+# Banco de dados SQLite
+data/*.sqlite
+data/*.sqlite-*
