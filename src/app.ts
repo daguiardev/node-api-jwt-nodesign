@@ -1,26 +1,41 @@
+import express from "express";
+import cors from "cors";
 
-import express, { Request, Response } from "express";
+// Importa as rotas de teste.
+import testRoutes from "./routes/testRoutes";
 
-// Cria uma aplicação utilizando o framework Express.
+// Cria a aplicação Express.
 const app = express();
 
-/*
- * Define uma rota HTTP.
+/**
+ * Configuração do CORS.
  *
- * Método: GET
- * Caminho: /
- *
- * Essa função será executada quando um cliente
- * enviar uma requisição GET para a raiz da API.
+ * A variável CORS_ORIGIN define qual origem
+ * poderá acessar a API por meio do navegador.
  */
-app.get("/", (req: Request, res: Response) => {
+const corsOrigin =
+  process.env.CORS_ORIGIN || "http://localhost:4200";
 
-  // Retorna uma resposta HTTP no formato JSON.
-  res.status(200).json({
-    message: "Minha primeira API com Node.js e Express!"
-  });
+app.use(cors({
+  origin: corsOrigin
+}));
 
-});
+/**
+ * Middleware para interpretar JSON.
+ *
+ * Permite que a aplicação receba dados JSON
+ * no corpo das requisições HTTP.
+ */
+app.use(express.json());
 
-// Disponibiliza a aplicação para outros arquivos.
+/**
+ * Registra as rotas de teste.
+ *
+ * Todas as rotas definidas em testRoutes
+ * receberão o prefixo "/api/test".
+ */
+app.use("/api/test", testRoutes);
+
+// Exporta a aplicação Express.
+// O servidor HTTP será iniciado em server.ts.
 export default app;
