@@ -10,6 +10,10 @@ dist/
 # Arquivos temporários de log.
 *.log
 
-# Banco de dados SQLite
+# Banco de dados local SQLite
 data/*.sqlite
-data/*.sqlite-*
+
+# Arquivos auxiliares do SQLite
+data/*.sqlite-journal
+data/*.sqlite-wal
+data/*.sqlite-shm
