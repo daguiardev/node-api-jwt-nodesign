@@ -3,6 +3,8 @@ import cors from "cors";
 
 // Importa as rotas de teste.
 import testRoutes from "./routes/testRoutes";
+import authRoutes from "./routes/authRoutes";
+
 
 // Cria a aplicação Express.
 const app = express();
@@ -35,6 +37,11 @@ app.use(express.json());
  * receberão o prefixo "/api/test".
  */
 app.use("/api/test", testRoutes);
+
+
+// Registra as rotas de autenticação.
+// Exemplo: POST /api/auth/register
+app.use("/api/auth", authRoutes);
 
 // Exporta a aplicação Express.
 // O servidor HTTP será iniciado em server.ts.
