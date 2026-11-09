@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import db from "../database/database";
+import jwt, { type SignOptions } from "jsonwebtoken";
 
 // Custo utilizado pelo bcrypt para gerar o hash.
 const SALT_ROUNDS = 10;
@@ -118,6 +119,132 @@ export async function register(
     // Não enviamos detalhes internos do erro ao cliente.
     res.status(500).json({
       message: "Erro interno ao cadastrar usuário."
+    });
+  }
+}
+
+
+/**
+ * Representa os dados necessários para realizar o login.
+ *
+ * Não precisamos carregar todos os campos da tabela users.
+ */
+type LoginUser = {
+  id: number;
+  password_hash: string;
+};
+
+/**
+ * Realiza a autenticação de um usuário.
+ *
+ * Recebe e-mail e senha, verifica as credenciais
+ * e gera um token JWT quando elas são válidas.
+ */
+export async function login(
+  req: Request,
+  res: Response
+): Promise<void> {
+  // 1. Recebe os dados enviados pelo cliente.
+  const { email, password } = req.body ?? {};
+
+  // 2. Verifica se os dados obrigatórios foram enviados.
+  if (
+    typeof email !== "string" ||
+    !email.trim() ||
+    typeof password !== "string" ||
+    !password
+  ) {
+    res.status(400).json({
+      message: "E-mail e senha são obrigatórios"
+    });
+    return;
+  }
+
+  // 3. Obtém o segredo e o prazo de validade do JWT.
+  const jwtSecret = process.env.JWT_SECRET;
+  const jwtExpiresIn = process.env.JWT_EXPIRES_IN;
+
+  // Sem o segredo, não é seguro gerar um token.
+  if (!jwtSecret || !jwtExpiresIn) {
+    res.status(500).json({
+      message: "Erro de configuração do servidor"
+    });
+    return;
+  }
+
+  // 4. Consulta o banco de dados pelo e-mail informado.
+  // O símbolo ? indica um parâmetro SQL.
+  // Isso evita concatenar dados do usuário na consulta.
+  const sql = `
+    SELECT id, password_hash
+    FROM users
+    WHERE email = ?
+  `;
+
+  let user: LoginUser | undefined;
+
+  try {
+    user = db.prepare(sql).get(email.trim()) as LoginUser | undefined;
+  } catch {
+    res.status(500).json({
+      message: "Erro interno do servidor"
+    });
+    return;
+  }
+
+  // 5. Verifica se o usuário foi encontrado.
+  // A mesma mensagem será usada para senha incorreta.
+  if (!user) {
+    res.status(401).json({
+      message: "E-mail ou senha inválidos"
+    });
+    return;
+  }
+
+  try {
+    // 6. Compara a senha recebida com o hash armazenado.
+    const validPassword = await bcrypt.compare(
+      password,
+      user.password_hash
+    );
+
+    // 7. Rejeita a tentativa se a senha estiver incorreta.
+    if (!validPassword) {
+      res.status(401).json({
+        message: "E-mail ou senha inválidos"
+      });
+      return;
+    }
+
+    // 8. Define o conteúdo do token.
+    // Incluímos somente o identificador do usuário.
+    const payload = {
+      id: user.id
+    };
+
+    // 9. Configura o prazo de expiração.
+    const options: SignOptions = {
+      expiresIn: jwtExpiresIn as SignOptions["expiresIn"],
+      algorithm: "HS256"
+    };
+
+    // 10. Gera o JWT assinado com o segredo do servidor.
+    const token = jwt.sign(
+      payload,
+      jwtSecret,
+      options
+    );
+
+    // 11. Retorna o token ao cliente.
+    // Não enviamos a senha nem o hash.
+    res.status(200).json({
+      message: "Login realizado com sucesso",
+      token
+    });
+  } catch {
+    // Evita expor detalhes técnicos ao cliente.
+    res.status(500).json({
+      message: "Erro interno do servidor"
     });
   }
 }
