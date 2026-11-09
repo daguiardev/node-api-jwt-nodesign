@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Request, Response } from "express";
 import  db from "../database/database";
 import { AuthenticatedRequest } from "../middlewares/authMiddleware";
 import bcrypt from "bcrypt";
@@ -239,6 +239,227 @@ export async function deleteMe(
 
     res.status(500).json({
       message: "Erro interno do servidor",
+    });
+  }
+}
+
+/**
+ * Lista todos os usuários cadastrados.
+ *
+ * A autorização será realizada pelo adminMiddleware
+ * antes da execução desta função.
+ */
+export async function listUsers(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    // Consulta todos os usuários.
+    // Não selecionamos password_hash por segurança.
+    const users = db.prepare(
+      `SELECT id, name, email, role, created_at, updated_at
+       FROM users
+       ORDER BY id ASC`
+    ).all();
+
+    // Retorna a lista em formato JSON.
+    res.status(200).json(users);
+
+  } catch (error) {
+    // Não expõe detalhes internos do banco de dados.
+    res.status(500).json({
+      message: 'Erro ao listar usuários'
+    });
+  }
+}
+
+/**
+ * Consulta um usuário pelo identificador.
+ *
+ * O ID será recebido como parâmetro da URL.
+ * Exemplo: GET /api/users/2
+ */
+export async function getUserById(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    // Converte o parâmetro da URL para número.
+    const id = Number(req.params.id);
+
+    // Verifica se o ID é um inteiro positivo.
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      res.status(400).json({
+        message: 'ID inválido'
+      });
+      return;
+    }
+
+    // Busca somente o usuário com o ID informado.
+    const user = db.prepare(
+      `SELECT id, name, email, role, created_at, updated_at
+       FROM users
+       WHERE id = ?`
+    ).get(id);
+
+    // Retorna 404 quando o usuário não existe.
+    if (!user) {
+      res.status(404).json({
+        message: 'Usuário não encontrado'
+      });
+      return;
+    }
+
+    // Retorna os dados encontrados.
+    res.status(200).json(user);
+
+  } catch (error) {
+    res.status(500).json({
+      message: 'Erro ao consultar usuário'
+    });
+  }
+}
+
+/**
+ * Atualiza o nome e o e-mail de um usuário.
+ *
+ * Somente administradores podem acessar esta função.
+ * O papel e a senha não são alterados.
+ */
+export async function updateUserById(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const id = Number(req.params.id);
+
+    // Valida o identificador recebido pela URL.
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      res.status(400).json({
+        message: 'ID inválido'
+      });
+      return;
+    }
+
+    // Recebe apenas os campos permitidos.
+    const { name, email } = req.body ?? {};
+
+    // Verifica se os campos são textos válidos.
+    if (
+      typeof name !== 'string' ||
+      typeof email !== 'string' ||
+      name.trim() === '' ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+    ) {
+      res.status(400).json({
+        message: 'Nome ou e-mail inválido'
+      });
+      return;
+    }
+
+    // Impede tentativas de alterar campos não permitidos.
+    if (
+      Object.keys(req.body).some(
+        key => !['name', 'email'].includes(key)
+      )
+    ) {
+      res.status(400).json({
+        message: 'Apenas nome e e-mail podem ser alterados'
+      });
+      return;
+    }
+
+    const newName = name.trim();
+    const newEmail = email.trim().toLowerCase();
+
+    // Confirma se o usuário existe.
+    const user = db.prepare(
+      'SELECT id FROM users WHERE id = ?'
+    ).get(id);
+
+    if (!user) {
+      res.status(404).json({
+        message: 'Usuário não encontrado'
+      });
+      return;
+    }
+
+    // Verifica se o e-mail pertence a outro usuário.
+    const existingEmail = db.prepare(
+      'SELECT id FROM users WHERE email = ? AND id <> ?'
+    ).get(newEmail, id);
+
+    if (existingEmail) {
+      res.status(409).json({
+        message: 'E-mail já cadastrado'
+      });
+      return;
+    }
+
+    // Atualiza os campos permitidos.
+    db.prepare(
+      `UPDATE users
+       SET name = ?, email = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    ).run(newName, newEmail, id);
+
+    // Consulta os dados atualizados sem incluir a senha.
+    const updatedUser = db.prepare(
+      `SELECT id, name, email, role, created_at, updated_at
+       FROM users
+       WHERE id = ?`
+    ).get(id);
+
+    res.status(200).json(updatedUser);
+
+  } catch (error) {
+    res.status(500).json({
+      message: 'Erro ao atualizar usuário'
+    });
+  }
+}
+
+/**
+ * Exclui um usuário pelo identificador.
+ *
+ * O administrador pode excluir contas de terceiros.
+ */
+export async function deleteUserById(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const id = Number(req.params.id);
+
+    // Valida o identificador informado.
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      res.status(400).json({
+        message: 'ID inválido'
+      });
+      return;
+    }
+
+    // Verifica se o usuário existe antes de excluir.
+    const user = db.prepare(
+      'SELECT id FROM users WHERE id = ?'
+    ).get(id);
+
+    if (!user) {
+      res.status(404).json({
+        message: 'Usuário não encontrado'
+      });
+      return;
+    }
+
+    // Exclui o registro correspondente ao ID.
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+
+    // HTTP 204 indica sucesso sem conteúdo de resposta.
+    res.status(204).send();
+
+  } catch (error) {
+    res.status(500).json({
+      message: 'Erro ao excluir usuário'
     });
   }
 }

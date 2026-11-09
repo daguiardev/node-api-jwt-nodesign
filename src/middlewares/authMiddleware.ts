@@ -120,3 +120,15 @@ export async function authMiddleware(
     });
   }
 }
+
+// Adiciona ao tipo Request as informações do usuário autenticado.
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: number;
+        role: 'user' | 'admin';
+      };
+    }
+  }
+}
