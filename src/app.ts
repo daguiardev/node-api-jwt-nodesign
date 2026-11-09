@@ -5,6 +5,9 @@ import cors from "cors";
 import testRoutes from "./routes/testRoutes";
 import authRoutes from "./routes/authRoutes";
 
+// Importa as rotas de gerenciamento de usuários.
+import userRoutes from "./routes/userRoutes";
+
 
 // Cria a aplicação Express.
 const app = express();
@@ -42,6 +45,9 @@ app.use("/api/test", testRoutes);
 // Registra as rotas de autenticação.
 // Exemplo: POST /api/auth/register
 app.use("/api/auth", authRoutes);
+
+// Associa as rotas de usuários ao prefixo /api/users.
+app.use("/api/users", userRoutes);
 
 // Exporta a aplicação Express.
 // O servidor HTTP será iniciado em server.ts.
